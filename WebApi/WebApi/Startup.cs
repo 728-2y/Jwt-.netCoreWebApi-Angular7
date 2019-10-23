@@ -60,6 +60,9 @@ namespace WebApi
                     };
                 });
 
+
+            RegisterAuthorization.AddAuthorizationPolicy(services);
+
             // cross domain
             //services.AddCors(options => options.AddPolicy("AllowAll", builder => builder.AllowAnyOrigin()
             //                                                                            .AllowAnyMethod()

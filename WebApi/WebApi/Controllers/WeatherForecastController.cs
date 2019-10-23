@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using WebApi.Models;
 
 namespace WebApi.Controllers
 {
@@ -26,6 +27,7 @@ namespace WebApi.Controllers
         }
 
         [HttpGet]
+        [Authorize(Policy = nameof(PermissionConstants.SystemPermissions.MANAGE_LIST))]
         public IEnumerable<WeatherForecast> Get()
         {
             var rng = new Random();

@@ -39,6 +39,7 @@ namespace WebApi.Controllers
         }
         // GET: api/Account
         [HttpGet]
+        [Authorize(Roles ="Administrator")]
         public IActionResult Get()
         {
             var result =new  Dictionary<string, string>();
