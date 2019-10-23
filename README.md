@@ -1,4 +1,4 @@
-# JwtAuthorization-.netCoreWebApi-Angular7
+# Jwt-.netCoreWebApi
 ## webapi
 -- 
 jwt token authorization and authentication
