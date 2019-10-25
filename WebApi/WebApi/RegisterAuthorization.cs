@@ -23,7 +23,7 @@ namespace WebApi
             foreach (var item in PermissionConstants.SystemPermissionsSet)
             {
                 options.AddPolicy(
-                    nameof(item),
+                    item,
                     it => it.RequireAssertion(ctx =>
                      {
                          return ctx.User.IsInRole("Administrator") || ctx.User.HasClaim(PermissionConstants.PERMISSION_CLAIM_TYPE, item);

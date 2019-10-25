@@ -25,29 +25,28 @@ namespace WebApi.Controllers
     {
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly SignInManager<ApplicationUser> _signInManger;
+        private readonly RoleManager<IdentityRole> _roleManager;
         private readonly AccountService _accountService;
         private readonly IOptions<JwtTokenSetting> _jwtTokenSetting;
         public AccountController(UserManager<ApplicationUser> userManager,
             SignInManager<ApplicationUser> signInManager,
+            RoleManager<IdentityRole> roleManager,
             AccountService accountService,
             IOptions<JwtTokenSetting> jwtTokenSetting)
         {
             _signInManger = signInManager;
             _userManager = userManager;
+            _roleManager = roleManager;
             _accountService = accountService;
             _jwtTokenSetting = jwtTokenSetting;
         }
         // GET: api/Account
         [HttpGet]
-        [Authorize(Roles ="Administrator")]
+        //[Authorize(Roles = ="Administrator")]
+        [Authorize(Policy =PermissionConstants.SystemPermissions.MANAGE_UPDATE)]
         public IActionResult Get()
         {
-            var result =new  Dictionary<string, string>();
-
-            foreach (var claim in User.Claims)
-            {
-                result.TryAdd(claim.Type, claim.Value);
-            }
+            var result = User.Claims.Select(it => new { it.Type, it.Value });
 
             return Ok(result);
         }
@@ -101,17 +100,30 @@ namespace WebApi.Controllers
                 return BadRequest("password is error");
             }
 
-            var claims = await _userManager.GetClaimsAsync(user);
+            var userClaims = await _userManager.GetClaimsAsync(user);
+            var roles = await _userManager.GetRolesAsync(user);
+            foreach (var roleName in roles)
+            {
+                var role = await _roleManager.FindByNameAsync(roleName);
+                if (role != null)
+                {
+                    var claims =  await _roleManager.GetClaimsAsync(role);
+                    foreach (var claim in claims)
+                    {
+                        userClaims.Add(claim);
+                    }
+                }
+            }
 
-            claims.Add(new Claim(ClaimTypes.PrimarySid,user.Id));
-            claims.Add(new Claim(ClaimTypes.Email, user.Email));
-            claims.Add(new Claim(ClaimTypes.Name, user.UserName));
+            userClaims.Add(new Claim(ClaimTypes.PrimarySid,user.Id));
+            userClaims.Add(new Claim(ClaimTypes.Email, user.Email));
+            userClaims.Add(new Claim(ClaimTypes.Name, user.UserName));
 
             var secretKey = Encoding.UTF8.GetBytes( _jwtTokenSetting.Value.SecretKey);
             var credentials = new SigningCredentials(new SymmetricSecurityKey(secretKey), SecurityAlgorithms.HmacSha256);
 
             var issuer = _jwtTokenSetting.Value.Issuer;
-            var securityToken = new JwtSecurityToken(issuer: issuer, audience: null, claims: claims, null, DateTime.Now.AddMinutes(30), credentials);
+            var securityToken = new JwtSecurityToken(issuer: issuer, audience: null, claims: userClaims, null, DateTime.Now.AddMinutes(30), credentials);
 
             var tokenHandler = new JwtSecurityTokenHandler();
             var token = tokenHandler.WriteToken(securityToken);
@@ -122,6 +134,45 @@ namespace WebApi.Controllers
             });
 
 
+        }
+
+        [HttpPost("claims")]
+        public async Task<IActionResult> AddClaimsPerssions([FromBody] RoleClaimsModel roleClaims)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest();
+            }
+            await _accountService.AddRoleClaimsAsync(roleClaims.RoleName,roleClaims.Permissions);
+
+            return Created(nameof(AddClaimsPerssions), "ok");
+        }
+
+        [HttpPatch("accountRole")]
+        public async Task<IActionResult> UpdateRole([FromBody] UserRoleModel userRole)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest("role name is not null");
+            }
+
+            var user = await _userManager.FindByNameAsync(userRole.UserEmail);
+            if (user == null)
+            {
+                return BadRequest("not found the account");
+            }
+
+            var roles = await _userManager.GetRolesAsync(user);
+            await _userManager.RemoveFromRoleAsync(user, roles.FirstOrDefault());
+
+            if (!await _roleManager.RoleExistsAsync(userRole.RoleName))
+            {
+                return BadRequest($"not found {userRole.RoleName} role");
+            }
+
+            var result = await _userManager.AddToRoleAsync(user, userRole.RoleName);
+
+            return Ok(result);
         }
 
         // PUT: api/Account/5
