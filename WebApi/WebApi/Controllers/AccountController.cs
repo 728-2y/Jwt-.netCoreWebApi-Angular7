@@ -42,8 +42,8 @@ namespace WebApi.Controllers
         }
         // GET: api/Account
         [HttpGet]
-        //[Authorize(Roles = ="Administrator")]
-        [Authorize(Policy =PermissionConstants.SystemPermissions.MANAGE_UPDATE)]
+        [Authorize(Roles ="Administrator")]
+        //[Authorize(Policy =PermissionConstants.SystemPermissions.MANAGE_LIST)]
         public IActionResult Get()
         {
             var result = User.Claims.Select(it => new { it.Type, it.Value });
@@ -104,13 +104,17 @@ namespace WebApi.Controllers
             var roles = await _userManager.GetRolesAsync(user);
             foreach (var roleName in roles)
             {
-                var role = await _roleManager.FindByNameAsync(roleName);
-                if (role != null)
+                userClaims.Add(new Claim(ClaimTypes.Role, roleName));
+                if (_roleManager.SupportsRoleClaims)
                 {
-                    var claims =  await _roleManager.GetClaimsAsync(role);
-                    foreach (var claim in claims)
+                    var role = await _roleManager.FindByNameAsync(roleName);
+                    if (role != null)
                     {
-                        userClaims.Add(claim);
+                        var claims = await _roleManager.GetClaimsAsync(role);
+                        foreach (var claim in claims)
+                        {
+                            userClaims.Add(claim);
+                        }
                     }
                 }
             }
