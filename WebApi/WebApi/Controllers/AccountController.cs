@@ -52,7 +52,7 @@ namespace WebApi.Controllers
         }
 
         // GET: api/Account/5
-        [HttpGet("{id}", Name = "Get")]
+        [HttpGet("{id}", Name = "GetAccount")]
         public string Get(int id)
         {
             return "value";
@@ -136,47 +136,6 @@ namespace WebApi.Controllers
             {
                 access_token=token
             });
-
-
-        }
-
-        [HttpPost("claims")]
-        public async Task<IActionResult> AddClaimsPerssions([FromBody] RoleClaimsModel roleClaims)
-        {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest();
-            }
-            await _accountService.AddRoleClaimsAsync(roleClaims.RoleName,roleClaims.Permissions);
-
-            return Created(nameof(AddClaimsPerssions), "ok");
-        }
-
-        [HttpPatch("accountRole")]
-        public async Task<IActionResult> UpdateRole([FromBody] UserRoleModel userRole)
-        {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest("role name is not null");
-            }
-
-            var user = await _userManager.FindByNameAsync(userRole.UserEmail);
-            if (user == null)
-            {
-                return BadRequest("not found the account");
-            }
-
-            var roles = await _userManager.GetRolesAsync(user);
-            await _userManager.RemoveFromRoleAsync(user, roles.FirstOrDefault());
-
-            if (!await _roleManager.RoleExistsAsync(userRole.RoleName))
-            {
-                return BadRequest($"not found {userRole.RoleName} role");
-            }
-
-            var result = await _userManager.AddToRoleAsync(user, userRole.RoleName);
-
-            return Ok(result);
         }
 
         // PUT: api/Account/5

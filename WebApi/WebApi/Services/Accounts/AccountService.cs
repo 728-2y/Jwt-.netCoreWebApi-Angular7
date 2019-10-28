@@ -40,11 +40,11 @@ namespace WebApi.Services.Accounts
             return role.Id;
         }
 
-        public async Task AddRoleClaimsAsync(string roleName,string[] permissions)
+        public async Task<string> UpdateRoleClaimsAsync(string roleName,string[] permissions)
         {
-            if (string.IsNullOrEmpty(roleName) || permissions.Length<1)
+            if (string.IsNullOrEmpty(roleName))
             {
-                throw new ArgumentNullException("role or permissions is null");
+                throw new ArgumentNullException("role is null");
             }
 
             var existRole = await _roleManger.FindByNameAsync(roleName);
@@ -56,13 +56,28 @@ namespace WebApi.Services.Accounts
 
             var existClaims = await _roleManger.GetClaimsAsync(existRole);
 
+            // add claims
             var addClaims = permissions.Where(it => existClaims.Select(cl => cl.Value).Contains(it) == false);
-
-            foreach (var claimValue in addClaims)
+            if (addClaims.Count() > 0)
             {
-                var claim = new Claim(PermissionConstants.PERMISSION_CLAIM_TYPE,claimValue);
-                await _roleManger.AddClaimAsync(existRole,claim);
+                foreach (var claimValue in addClaims)
+                {
+                    var claim = new Claim(PermissionConstants.PERMISSION_CLAIM_TYPE, claimValue);
+                    await _roleManger.AddClaimAsync(existRole, claim);
+                }
             }
+
+            // remove claims
+            var removeClaims = existClaims.Where(it => permissions.Contains(it.Value) == false);
+            if (removeClaims.Count() > 0)
+            {
+                foreach (var claim in removeClaims)
+                {
+                    await _roleManger.RemoveClaimAsync(existRole, claim);
+                }
+            }
+
+            return existRole.Id;
         }
 
         public async Task<IdentityResult> RemoveRoleAsync(string roleName)
@@ -83,32 +98,6 @@ namespace WebApi.Services.Accounts
             return result;
         }
 
-        public async Task RemoveClaimsAsync(string roleName, string[] permissions)
-        {
-            if (string.IsNullOrEmpty(roleName) || permissions.Length < 1)
-            {
-                throw new ArgumentNullException("role or permissions is null");
-            }
-
-            var existRole = await _roleManger.FindByNameAsync(roleName);
-            if (existRole == null)
-            {
-                throw new RoleNotFoundException();
-            }
-
-            var existClaims = await _roleManger.GetClaimsAsync(existRole);
-            var removeClaims = existClaims.Where(it => permissions.Contains(it.Value));
-            if (removeClaims == null)
-            {
-                throw new ClaimNotFoundException();
-            }
-
-            foreach (var claim in removeClaims)
-            {
-                await _roleManger.RemoveClaimAsync(existRole, claim);
-            }
-        }
-
         public async Task<IdentityResult> CreateAccountAsync(string email, string password, string roleName)
         {
             var user = await _userManger.FindByNameAsync(email);
@@ -125,9 +114,42 @@ namespace WebApi.Services.Accounts
             };
             result = await _userManger.CreateAsync(account, password);
             
-            if(result.Succeeded && !string.IsNullOrEmpty(roleName))
+            if(result.Succeeded)
             {
+                if (!await _roleManger.RoleExistsAsync(roleName))
+                {
+                    await AddRoleAsync(roleName);
+                }
                 result = await _userManger.AddToRoleAsync(account, roleName);
+            }
+
+            return result;
+        }
+
+        public async Task<IdentityResult> UpdateAccountRoleAsync(string email, string roleName)
+        {
+            if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(roleName))
+            {
+                throw new ArgumentNullException("email or role name is null, please confirmed again.");
+            }
+
+            IdentityResult result = null;
+
+            var user = await _userManger.FindByNameAsync(email);
+            if (user != null)
+            {
+                if (await _roleManger.RoleExistsAsync(roleName))
+                {
+                    result = await _userManger.AddToRoleAsync(user, roleName);
+                }
+                else
+                {
+                    throw new RoleNotFoundException();
+                }
+            }
+            else
+            {
+                throw new AccountNotFoundException();
             }
 
             return result;
