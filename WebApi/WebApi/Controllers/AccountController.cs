@@ -15,6 +15,7 @@ using WebApi.Data.ApplicationDbContext;
 using WebApi.Models;
 using WebApi.Models.Accounts;
 using WebApi.Services.Accounts;
+using WebApi.Services.Accounts.Exceptions;
 
 namespace WebApi.Controllers
 {
@@ -142,6 +143,39 @@ namespace WebApi.Controllers
         [HttpPut("{id}")]
         public void Put(int id, [FromBody] string value)
         {
+        }
+
+
+        [HttpPut("role")]
+        public async Task<IActionResult> UpdateUserRole([FromBody] UserRoleModel userRole)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest();
+            }
+
+            try
+            {
+                var result = await _accountService.UpdateUserRoleAsync(userRole.UserEmail, userRole.RoleName);
+                return Ok(result);
+            }
+            catch (RoleNotFoundException)
+            {
+                return BadRequest("not found the role,please add the role frist.");
+            }
+            catch (AccountNotFoundException)
+            {
+                return BadRequest("not found the account,please comfirmed the account state again.");
+            }
+            catch (AccountRoleExistedException)
+            {
+                return BadRequest("the user role existed");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+          
         }
 
         // DELETE: api/ApiWithActions/5

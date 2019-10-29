@@ -116,6 +116,7 @@ namespace WebApi.Services.Accounts
             
             if(result.Succeeded)
             {
+                // if do not have role, add new role
                 if (!await _roleManger.RoleExistsAsync(roleName))
                 {
                     await AddRoleAsync(roleName);
@@ -126,7 +127,7 @@ namespace WebApi.Services.Accounts
             return result;
         }
 
-        public async Task<IdentityResult> UpdateAccountRoleAsync(string email, string roleName)
+        public async Task<IdentityResult> UpdateUserRoleAsync(string email, string roleName)
         {
             if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(roleName))
             {
@@ -138,13 +139,21 @@ namespace WebApi.Services.Accounts
             var user = await _userManger.FindByNameAsync(email);
             if (user != null)
             {
-                if (await _roleManger.RoleExistsAsync(roleName))
+                var currentUserRoles = await _userManger.GetRolesAsync(user);
+                if (!currentUserRoles.Any(it => it == roleName))
                 {
-                    result = await _userManger.AddToRoleAsync(user, roleName);
+                    if (await _roleManger.RoleExistsAsync(roleName))
+                    {
+                        result = await _userManger.AddToRoleAsync(user, roleName);
+                    }
+                    else
+                    {
+                        throw new RoleNotFoundException();
+                    }
                 }
                 else
                 {
-                    throw new RoleNotFoundException();
+                    throw new AccountRoleExistedException();
                 }
             }
             else
