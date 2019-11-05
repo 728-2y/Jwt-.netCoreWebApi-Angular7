@@ -1,0 +1,26 @@
+.logo {
+    height: 32px;
+    background: rgba(255, 255, 255, 0.2);
+    margin: 16px;
+    padding: 5px;
+    text-align: center;
+    color: #fff;
+  }
+  
+  nz-content {
+    margin: 0 16px;
+  }
+  
+  nz-breadcrumb {
+    margin: 16px 0;
+  }
+  
+  .inner-content {
+    padding: 24px;
+    background: #fff;
+    min-height: 800px;
+  }
+  
+  nz-footer {
+    text-align: center;
+  }
